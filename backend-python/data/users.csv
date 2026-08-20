@@ -1,0 +1,7 @@
+email,password,role,name,company,title
+employer1@talentsync.com,Employer@123,employer,Ahmed Raza,TechVentures,HR Director
+employer2@talentsync.com,Employer@123,employer,Sarah Khan,NexGen Solutions,Talent Lead
+employee1@talentsync.com,Employee@123,employee,Ali Khan,,Embedded Systems Engineer
+employee2@talentsync.com,Employee@123,employee,Fatima Noor,,Full Stack Developer
+
+

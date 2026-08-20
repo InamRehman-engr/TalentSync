@@ -1,0 +1,20 @@
+# ── Backend (Flask + SQLite) ──────────────────────────────────────────────────
+FROM python:3.12-slim
+
+# Use an absolute workspace path inside the container so mounted code appears at a stable location
+WORKDIR /workspace
+
+# Copy only requirements into the image and install them. The repository root will be mounted at runtime
+# so code changes on the host appear immediately without rebuilding the image.
+COPY requirements.txt /workspace/requirements.txt
+RUN pip install --no-cache-dir -r /workspace/requirements.txt
+
+# Create workspace layout and data directory
+RUN mkdir -p /workspace/data
+
+# Expose ports used by backend and intelligence services
+EXPOSE 3001
+EXPOSE 5010
+
+# Default command runs the backend with gunicorn for production-ready concurrency.
+CMD ["gunicorn", "--chdir", "/workspace/backend-python", "--bind", "0.0.0.0:3001", "--workers", "4", "--threads", "4", "--timeout", "120", "app:app"]

@@ -1,0 +1,15 @@
+pymupdf
+qdrant-client
+ollama
+numpy
+flask
+flask-cors
+gunicorn
+pydantic[email]
+sqlalchemy
+alembic
+psycopg2-binary
+python-multipart
+python-dotenv
+requests
+PyGithub

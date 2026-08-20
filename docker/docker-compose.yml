@@ -1,0 +1,125 @@
+services:
+
+  # ── Optional: rebuild dependency base layers only when needed ───────────────
+  backend-base-cache:
+    profiles: ["build-base"]
+    build:
+      context: ..
+      dockerfile: docker/base_docker/DockerFile
+      target: backend-base
+    image: talentsync/backend-base:latest
+
+  frontend-base-cache:
+    profiles: ["build-base"]
+    build:
+      context: ..
+      dockerfile: docker/base_docker/DockerFile
+      target: frontend-base
+    image: talentsync/frontend-base:latest
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────────────
+  db:
+    env_file:
+      - ../.env
+    image: postgres:16-alpine
+    container_name: nhr_db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nhr"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Flask API ──────────────────────────────────────────────────────────────────
+  backend:
+    env_file:
+      - ../.env
+    build:
+      context: ..
+      dockerfile: docker/base_docker/DockerFile
+      target: backend-image
+    container_name: nhr_backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - ../backend-python:/workspace/backend-python
+      - ../.env:/workspace/.env:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    environment:
+      - FLASK_ENV=production
+    command: ["gunicorn", "--chdir", "/workspace/backend-python", "--bind", "0.0.0.0:3001", "--workers", "4", "--threads", "4", "--timeout", "120", "app:app"]
+
+  # ── Qdrant vector database ─────────────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: nhr_qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+  # ── Intelligence Layer ───────────────────────────────────────────────────────
+  intelligence:
+    env_file:
+      - ../.env
+    build:
+      context: ..
+      dockerfile: docker/base_docker/DockerFile
+      target: intelligence-image
+    container_name: nhr_intelligence
+    restart: unless-stopped
+    ports:
+      - "5010:5010"
+    volumes:
+      - ../intelligence_layer:/workspace/intelligence_layer
+      - ../backend-python:/workspace/backend-python
+      - ../.env:/workspace/.env:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    command: ["python", "intelligence_layer/app.py"]
+
+  # ── Vue / Nginx ─────────────────────────────────────────────────────────────
+  frontend:
+    env_file:
+      - ../.env
+    build:
+      context: ..
+      dockerfile: docker/base_docker/DockerFile
+      target: frontend-image
+    container_name: nhr_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  # ── Adminer (DB viewer) ───────────────────────────────────────────────────────────
+  adminer:
+    env_file:
+      - ../.env
+    build:
+      context: ./adminer
+      dockerfile: DockerFile
+    container_name: nhr_adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    depends_on:
+      - db
+
+volumes:
+  pg_data:
+  qdrant_storage:
